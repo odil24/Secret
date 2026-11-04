@@ -1,114 +1,114 @@
 name: Windows x64 Build
 
 on:
-  push:
-  pull_request:
-  workflow_dispatch:
+  push:
+  pull_request:
+  workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build-windows-x64:
-    name: Build and test (Windows x64 / MSVC)
-    runs-on: windows-2022
-    timeout-minutes: 30
+  build-windows-x64:
+    name: Build and test (Windows x64 / MSVC)
+    runs-on: windows-2022
+    timeout-minutes: 30
 
-    steps:
-      - name: Checkout source
-        uses: actions/checkout@v7
-        with:
-          persist-credentials: false
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
-      - name: Configure CMake
-        shell: pwsh
-        run: >-
-          cmake -S . -B build
-          -G "Visual Studio 17 2022"
-          -A x64
-          -DSECRET_BUILD_TESTS=ON
-          -DSECRET_BUILD_BENCHMARKS=OFF
+      - name: Configure CMake
+        shell: pwsh
+        run: >-
+          cmake -S . -B build
+          -G "Visual Studio 17 2022"
+          -A x64
+          -DSECRET_BUILD_TESTS=ON
+          -DSECRET_BUILD_BENCHMARKS=OFF
 
-      - name: Build Release
-        run: cmake --build build --config Release --parallel
+      - name: Build Release
+        run: cmake --build build --config Release --parallel
 
-      - name: Run unit tests
-        run: ctest --test-dir build -C Release --output-on-failure
+      - name: Run unit tests
+        run: ctest --test-dir build -C Release --output-on-failure
 
-      - name: Package Windows binary
-        id: package
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
+      - name: Package Windows binary
+        id: package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
 
-          $version = (Get-Content 'VERSION.txt' -Raw).Trim()
-          $packageName = "Secret-v$version-windows-x64"
-          $packageDir = Join-Path $env:GITHUB_WORKSPACE "dist\$packageName"
-          $exePath = Join-Path $env:GITHUB_WORKSPACE 'build\Release\secret.exe'
+          $version = (Get-Content 'VERSION.txt' -Raw).Trim()
+          $packageName = "Secret-v$version-windows-x64"
+          $packageDir = Join-Path $env:GITHUB_WORKSPACE "dist\$packageName"
+          $exePath = Join-Path $env:GITHUB_WORKSPACE 'build\Release\secret.exe'
 
-          if (-not (Test-Path $exePath)) {
-            throw "Build output not found: $exePath"
-          }
+          if (-not (Test-Path $exePath)) {
+            throw "Build output not found: $exePath"
+          }
 
-          New-Item -ItemType Directory -Force -Path $packageDir | Out-Null
-          Copy-Item $exePath -Destination $packageDir
-          Copy-Item 'README.md', 'CREDITS.md', 'VERSION.txt' -Destination $packageDir
-          Copy-Item 'third_party' -Destination $packageDir -Recurse
+          New-Item -ItemType Directory -Force -Path $packageDir | Out-Null
+          Copy-Item $exePath -Destination $packageDir
+          Copy-Item 'README.md', 'CREDITS.md', 'VERSION.txt' -Destination $packageDir
+          Copy-Item 'third_party' -Destination $packageDir -Recurse
 
-          # The project currently links against the MSVC dynamic CRT.
-          # Bundle the matching x64 VC143 runtime DLLs next to secret.exe.
-          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
-          if (-not (Test-Path $vswhere)) {
-            throw "vswhere.exe not found: $vswhere"
-          }
+          # The project currently links against the MSVC dynamic CRT.
+          # Bundle the matching x64 VC143 runtime DLLs next to secret.exe.
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          if (-not (Test-Path $vswhere)) {
+            throw "vswhere.exe not found: $vswhere"
+          }
 
-          $vsInstall = & $vswhere -latest -products '*' `
-            -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
-            -property installationPath
-          if (-not $vsInstall) {
-            throw 'Visual Studio C++ x64 toolset was not found.'
-          }
+          $vsInstall = & $vswhere -latest -products '*' `
+            -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+            -property installationPath
+          if (-not $vsInstall) {
+            throw 'Visual Studio C++ x64 toolset was not found.'
+          }
 
-          $redistRoot = Join-Path $vsInstall 'VC\Redist\MSVC'
-          $crtDir = Get-ChildItem -Path $redistRoot -Directory |
-            Sort-Object Name -Descending |
-            ForEach-Object { Join-Path $_.FullName 'x64\Microsoft.VC143.CRT' } |
-            Where-Object { Test-Path $_ } |
-            Select-Object -First 1
+          $redistRoot = Join-Path $vsInstall 'VC\Redist\MSVC'
+          $crtDir = Get-ChildItem -Path $redistRoot -Directory |
+            Sort-Object Name -Descending |
+            ForEach-Object { Join-Path $_.FullName 'x64\Microsoft.VC143.CRT' } |
+            Where-Object { Test-Path $_ } |
+            Select-Object -First 1
 
-          if (-not $crtDir) {
-            throw "The x64 Microsoft.VC143.CRT redistributable directory was not found under $redistRoot"
-          }
+          if (-not $crtDir) {
+            throw "The x64 Microsoft.VC143.CRT redistributable directory was not found under $redistRoot"
+          }
 
-          $runtimeDlls = Get-ChildItem -Path $crtDir -Filter '*.dll' -File
-          if (-not $runtimeDlls) {
-            throw "No MSVC runtime DLLs found in $crtDir"
-          }
-          Copy-Item -Path $runtimeDlls.FullName -Destination $packageDir
+          $runtimeDlls = Get-ChildItem -Path $crtDir -Filter '*.dll' -File
+          if (-not $runtimeDlls) {
+            throw "No MSVC runtime DLLs found in $crtDir"
+          }
+          Copy-Item -Path $runtimeDlls.FullName -Destination $packageDir
 
-          $buildInfo = @"
-          Product: Secret CPU Path Tracer
-          Version: $version
-          Platform: Windows 10+ x64
-          Compiler: Visual Studio 2022 / MSVC
-          Language: C++23
-          Configuration: Release
-          Git commit: $env:GITHUB_SHA
-          Included runtime: x64 Microsoft Visual C++ 14.3 (VC143), app-local DLL deployment
-          Tests: passed (CTest)
-          "@
-          Set-Content -Path (Join-Path $packageDir 'BUILD-INFO.txt') -Value $buildInfo -Encoding utf8
+          $buildInfo = @"
+          Product: Secret CPU Path Tracer
+          Version: $version
+          Platform: Windows 10+ x64
+          Compiler: Visual Studio 2022 / MSVC
+          Language: C++23
+          Configuration: Release
+          Git commit: $env:GITHUB_SHA
+          Included runtime: x64 Microsoft Visual C++ 14.3 (VC143), app-local DLL deployment
+          Tests: passed (CTest)
+          "@
+          Set-Content -Path (Join-Path $packageDir 'BUILD-INFO.txt') -Value $buildInfo -Encoding utf8
 
-          "name=$packageName" >> $env:GITHUB_OUTPUT
+          "name=$packageName" >> $env:GITHUB_OUTPUT
 
-      - name: Upload Windows ZIP artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: ${{ steps.package.outputs.name }}
-          path: dist/${{ steps.package.outputs.name }}/
-          if-no-files-found: error
-          retention-days: 30
+      - name: Upload Windows ZIP artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.package.outputs.name }}
+          path: dist/${{ steps.package.outputs.name }}/
+          if-no-files-found: error
+          retention-days: 30
