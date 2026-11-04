@@ -1,4 +1,4 @@
-# Secret — Phase 02: Math Foundation
+# Secret Render engine
 
 Initial C++23 scalar math layer for the Secret offline CPU renderer.
 
