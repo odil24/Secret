@@ -1,0 +1,9 @@
+/build/
+/out/
+*.ppm
+*.png
+*.jpg
+*.obj
+*.pdb
+*.ilk
+*.exe

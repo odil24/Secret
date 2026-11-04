@@ -1,54 +1,91 @@
 cmake_minimum_required(VERSION 3.25)
 cmake_policy(SET CMP0091 NEW)
-project(Secret VERSION 0.2.0 DESCRIPTION "Cross-platform offline CPU renderer" LANGUAGES CXX)
+
+project(Secret VERSION 0.7.0 DESCRIPTION "Windows x64 CPU path tracer" LANGUAGES CXX)
+
+if(NOT WIN32 OR NOT MSVC)
+    message(FATAL_ERROR "Secret v0.7 supports Windows 10 x64 with MSVC only.")
+endif()
+if(NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
+    message(FATAL_ERROR "Secret v0.7 requires the x64 MSVC toolchain.")
+endif()
+
 option(SECRET_BUILD_TESTS "Build Secret unit tests" ON)
-option(SECRET_WITH_EMBREE "Build Embree 4 acceleration backend" OFF)
-option(SECRET_WARNINGS_AS_ERRORS "Treat warnings as errors" OFF)
+option(SECRET_BUILD_BENCHMARKS "Build CPU/BVH microbenchmarks" OFF)
+
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+
+add_library(secret_options INTERFACE)
+target_compile_options(secret_options INTERFACE
+    /W4
+    /permissive-
+    /Zc:__cplusplus
+    /EHsc
+    /utf-8
+)
+target_compile_definitions(secret_options INTERFACE
+    WIN32_LEAN_AND_MEAN
+    NOMINMAX
+    WINVER=0x0A00
+    _WIN32_WINNT=0x0A00
+)
+
+set(SECRET_SIMD_SOURCES
+    src/aabb_packet.cpp
+    src/aabb_packet_avx2.cpp
+    src/sphere_packet.cpp
+    src/sphere_packet_avx2.cpp
+)
+
+# Only the AVX2 translation unit is compiled with AVX2 enabled. The dispatcher,
+# renderer and the rest of the executable remain baseline x64 for safe fallback.
 if(MSVC)
-  set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
-endif()
-add_library(secret_math INTERFACE)
-add_library(Secret::Math ALIAS secret_math)
-target_include_directories(secret_math INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include>)
-target_compile_features(secret_math INTERFACE cxx_std_23)
-add_executable(secret src/main.cpp)
-target_link_libraries(secret PRIVATE Secret::Math)
-if(SECRET_WITH_EMBREE)
-  find_package(embree 4.4 REQUIRED CONFIG)
-  add_library(secret_embree src/acceleration/embree_device.cpp)
-  add_library(Secret::Embree ALIAS secret_embree)
-  target_include_directories(secret_embree PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
-  )
-  target_link_libraries(secret_embree PUBLIC embree)
-  target_compile_features(secret_embree PUBLIC cxx_std_23)
-  target_link_libraries(secret PRIVATE Secret::Embree)
-  target_compile_definitions(secret PRIVATE SECRET_WITH_EMBREE=1)
-endif()
-if(MSVC)
-  set(WARNINGS /W4 /permissive- /Zc:__cplusplus)
-  if(SECRET_WARNINGS_AS_ERRORS)
-    list(APPEND WARNINGS /WX)
-  endif()
+    set_source_files_properties(src/aabb_packet_avx2.cpp src/sphere_packet_avx2.cpp PROPERTIES COMPILE_OPTIONS "/arch:AVX2")
 else()
-  set(WARNINGS -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow)
-  if(SECRET_WARNINGS_AS_ERRORS)
-    list(APPEND WARNINGS -Werror)
-  endif()
+    set_source_files_properties(src/aabb_packet_avx2.cpp src/sphere_packet_avx2.cpp PROPERTIES COMPILE_OPTIONS "-mavx2")
 endif()
-target_compile_options(secret PRIVATE ${WARNINGS})
-if(TARGET secret_embree)
-  target_compile_options(secret_embree PRIVATE ${WARNINGS})
-endif()
+
+add_executable(secret
+    src/main.cpp
+    src/renderer.cpp
+    ${SECRET_SIMD_SOURCES}
+)
+target_include_directories(secret PRIVATE include)
+target_link_libraries(secret PRIVATE secret_options windowscodecs ole32)
+target_compile_features(secret PRIVATE cxx_std_23)
+
 if(SECRET_BUILD_TESTS)
-  enable_testing()
-  add_executable(secret_math_tests tests/math_tests.cpp)
-  target_link_libraries(secret_math_tests PRIVATE Secret::Math)
-  target_compile_options(secret_math_tests PRIVATE ${WARNINGS})
-  add_test(NAME secret_math_tests COMMAND secret_math_tests)
+    enable_testing()
+    add_executable(secret_tests tests/tests.cpp ${SECRET_SIMD_SOURCES})
+    target_include_directories(secret_tests PRIVATE include)
+    target_link_libraries(secret_tests PRIVATE secret_options)
+    target_compile_features(secret_tests PRIVATE cxx_std_23)
+    add_test(NAME secret_tests COMMAND secret_tests)
+endif()
+
+if(SECRET_BUILD_BENCHMARKS)
+    add_executable(secret_bvh_benchmark benchmarks/bvh_benchmark.cpp)
+    target_include_directories(secret_bvh_benchmark PRIVATE include)
+    target_link_libraries(secret_bvh_benchmark PRIVATE secret_options)
+    target_compile_features(secret_bvh_benchmark PRIVATE cxx_std_23)
+
+    add_executable(secret_aabb_packet_benchmark
+        benchmarks/aabb_packet_benchmark.cpp
+        ${SECRET_SIMD_SOURCES}
+    )
+    target_include_directories(secret_aabb_packet_benchmark PRIVATE include)
+    target_link_libraries(secret_aabb_packet_benchmark PRIVATE secret_options)
+    target_compile_features(secret_aabb_packet_benchmark PRIVATE cxx_std_23)
+
+    add_executable(secret_sphere_packet_benchmark
+        benchmarks/sphere_packet_benchmark.cpp
+        ${SECRET_SIMD_SOURCES}
+    )
+    target_include_directories(secret_sphere_packet_benchmark PRIVATE include)
+    target_link_libraries(secret_sphere_packet_benchmark PRIVATE secret_options)
+    target_compile_features(secret_sphere_packet_benchmark PRIVATE cxx_std_23)
 endif()
