@@ -1,0 +1,14 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {"major": 3, "minor": 25, "patch": 0},
+  "configurePresets": [
+    {"name":"windows-msvc-debug","displayName":"Windows / MSVC / Debug","generator":"Visual Studio 17 2022","architecture":"x64","binaryDir":"${sourceDir}/build/windows-msvc-debug","cacheVariables":{"SECRET_WITH_EMBREE":"OFF","SECRET_BUILD_TESTS":"ON"}},
+    {"name":"linux-gcc-debug","displayName":"Linux / GCC / Debug","generator":"Ninja","binaryDir":"${sourceDir}/build/linux-gcc-debug","cacheVariables":{"CMAKE_BUILD_TYPE":"Debug","CMAKE_CXX_COMPILER":"g++","SECRET_WITH_EMBREE":"OFF","SECRET_BUILD_TESTS":"ON"}},
+    {"name":"linux-clang-debug","displayName":"Linux / Clang / Debug","generator":"Ninja","binaryDir":"${sourceDir}/build/linux-clang-debug","cacheVariables":{"CMAKE_BUILD_TYPE":"Debug","CMAKE_CXX_COMPILER":"clang++","SECRET_WITH_EMBREE":"OFF","SECRET_BUILD_TESTS":"ON"}}
+  ],
+  "buildPresets": [
+    {"name":"windows-msvc-debug","configurePreset":"windows-msvc-debug","configuration":"Debug"},
+    {"name":"linux-gcc-debug","configurePreset":"linux-gcc-debug"},
+    {"name":"linux-clang-debug","configurePreset":"linux-clang-debug"}
+  ]
+}
