@@ -33,9 +33,12 @@ public:
 
     [[nodiscard]] constexpr float length_squared() const noexcept { return x_ * x_ + y_ * y_ + z_ * z_; }
     [[nodiscard]] float length() const noexcept { return std::sqrt(length_squared()); }
+    
     [[nodiscard]] constexpr bool near_zero() const noexcept {
         constexpr float epsilon = 1.0e-8F;
-        return std::abs(x_) < epsilon && std::abs(y_) < epsilon && std::abs(z_) < epsilon;
+        return (x_ < 0.0F ? -x_ : x_) < epsilon && 
+               (y_ < 0.0F ? -y_ : y_) < epsilon && 
+               (z_ < 0.0F ? -z_ : z_) < epsilon;
     }
 
 private:
