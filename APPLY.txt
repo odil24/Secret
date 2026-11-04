@@ -1,0 +1,23 @@
+Secret v0.8.0 fix bundle
+
+This is an overlay bundle, not a full source checkout. Extract its contents into the root of your existing Secret repository and allow the files to overwrite existing files.
+
+Replaced files:
+  CMakeLists.txt
+  README.md
+  VERSION.txt
+  .github/workflows/build.yml
+  tests/math_tests.cpp
+  src/acceleration/embree_device.cpp
+
+New files:
+  include/secret/math/Math.hpp
+  include/secret/acceleration/embree_device.hpp
+
+Then run from Developer PowerShell for Visual Studio 2022:
+  cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DSECRET_BUILD_TESTS=ON -DSECRET_BUILD_BENCHMARKS=ON
+  cmake --build build --config Release --parallel
+  ctest --test-dir build -C Release -L unit --output-on-failure
+  ctest --test-dir build -C Release -L benchmark --output-on-failure
+
+Embree remains optional. To compile the optional device-support target, install the Embree 4 SDK, make its CMake package discoverable, and configure with -DSECRET_ENABLE_EMBREE=ON.
