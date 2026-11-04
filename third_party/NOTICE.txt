@@ -1,0 +1,21 @@
+Third-party notices for Secret v0.4
+
+1) LTC SGGX-volume sheen coefficient table
+   Copyright 2022 Tizian Zeltner, Brent Burley, and Matt Jen-Yuan Chiang.
+   Original source: https://github.com/tizian/ltc-sheen
+   Original table: fitting/python/data/ltc_table_sheen_volume.cpp
+   Paper: "Practical Multiple-Scattering Sheen Using Linearly Transformed Cosines",
+   SIGGRAPH 2022.
+   License: Apache License 2.0 (see Apache-2.0-LICENSE.txt).
+   Modified for Secret v0.4: coefficients are stored as signed 16-bit normalized
+   values and bilinearly decoded at runtime.
+
+2) Disney BRDF reference implementation
+   Shih-Chin Weng, rlShaders/src/rlDisney.cpp
+   https://github.com/shihchinw/rlShaders/blob/master/src/rlDisney.cpp
+   License: MIT (see rlShaders_LICENSE.txt).
+
+3) LTC sheen integration reference supplied for this project
+   Borja García Quiroga, LTC-based-sheen-models
+   https://github.com/borjagq/LTC-based-sheen-models
+   License: MIT. No source files from that repository are included verbatim.
